@@ -1,0 +1,32 @@
+# Sample docker-compose.yml for the OpenDKIM image.
+#
+# Pick the image tag from the version table in README.md, e.g.:
+#   ghcr.io/optimode/opendkim:2.11.0-alpine
+#
+# Moving tags: 2.11-alpine (latest patch of 2.11), latest-alpine.
+#
+services:
+  opendkim:
+    image: ghcr.io/optimode/opendkim:2.11.0-alpine
+    container_name: opendkim
+    restart: unless-stopped
+    ports:
+      - "8891:8891"
+    environment:
+      - TZ=Europe/Budapest
+    volumes:
+      # OpenDKIM configuration directory (Alpine layout): opendkim.conf,
+      # KeyTable, SigningTable, TrustedHosts and the DKIM keys.
+      # OpenDKIM refuses to start without these permissions:
+      #   chown -R root:root ./etc && chmod 600 ./etc/*.private
+      - ./etc:/etc/opendkim
+      # Log directory. Works out of the box with rsyslog, which writes the
+      # mail facility log (opendkim's syslog output) to /data/log/mail.log.
+      - ./log:/data/log
+
+    # Alternative for production hosts where the MTA and OpenDKIM share the
+    # loopback interface or the milter must be reachable on a specific
+    # address - as with any network_mode: host setup, the "ports" section is
+    # ignored. The milter socket must then listen on that address as well
+    # ("Socket inet:8891@0.0.0.0" in opendkim.conf):
+    # network_mode: host
