@@ -19,9 +19,14 @@ built.
 | Git tag | Alpine | OpenDKIM | Build date | Docker image |
 |---|---|---|---|---|
 | `v1.0.0` | 3.24.2 | 2.11.0 | 2026-11-06 | `ghcr.io/optimode/opendkim:2.11.0-alpine` |
+| `v1.1.0` | 3.24.2 | 2.11.0 | 2026-11-09 | `ghcr.io/optimode/opendkim:2.11.0-alpine` |
 
 Notes:
 
+- The Docker image tag reflects the OpenDKIM version, not the git tag:
+  every release rebuilds the same `2.11.0-alpine` tag (v1.0.0 with the
+  supervisor-managed layout, v1.1.0 with runit, see
+  [CHANGELOG.md](CHANGELOG.md)).
 - Besides the exact version tag (e.g. `2.11.0-alpine`) each build produces two
   moving tags: `2.11-alpine` (latest patch level of OpenDKIM 2.11) and
   `latest-alpine`. For reproducible deployments use the exact version tag.
@@ -30,6 +35,7 @@ Notes:
 
 ```sh
 docker run -d --name opendkim \
+  -e TZ=Europe/Budapest \
   -p 8891:8891 \
   -v ./etc:/etc/opendkim \
   -v ./log:/data/log \

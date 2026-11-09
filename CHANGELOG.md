@@ -9,6 +9,8 @@ the version table in [README.md](README.md).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-09
+
 ### Added
 
 - Per-service stderr logs via runit's svlogd under `/data/log/<service>/`
@@ -65,5 +67,6 @@ First versioned release. The image is published as
 - README version table mapping each release to its exact Alpine and OpenDKIM
   versions, build date and Docker image name.
 
-[Unreleased]: https://github.com/optimode/opendkim/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/optimode/opendkim/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/optimode/opendkim/releases/tag/v1.1.0
 [1.0.0]: https://github.com/optimode/opendkim/releases/tag/v1.0.0
