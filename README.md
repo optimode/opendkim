@@ -4,10 +4,10 @@ Alpine-based [OpenDKIM](http://www.opendkim.org/) Docker image — a DKIM
 signing and verifying milter for MTAs such as
 [Postfix](https://www.postfix.org/).
 
-The container runs `opendkim` in the foreground under `supervisor`, with
-`rsyslog` writing the logs. Configuration and DKIM keys are mounted at
-`/etc/opendkim`, logs go to `/data/log` and the milter endpoint listens on
-port `8891`.
+The container is managed by runit (PID 1: `runsvdir`) and supervises two
+services: OpenDKIM (as `opendkim -f`) and rsyslog. Configuration and DKIM
+keys are mounted at `/etc/opendkim`, logs go to `/data/log` where rsyslog
+writes and rotates them, and the milter endpoint listens on port `8891`.
 
 ## Versions
 
@@ -58,12 +58,41 @@ See [docker-compose.yml](docker-compose.yml) for a commented compose sample.
   The key utilities (`opendkim-genkey`, `opendkim-testkey`, …) from
   `opendkim-utils` are included in the image.
 - **Logging**: `rsyslog` writes OpenDKIM's syslog output (mail facility) to
-  `/data/log/mail.log`. Mount `./log:/data/log` to keep the logs on the host.
+  `/data/log/mail.log` and rotates every log stream at 50 MiB, keeping 7
+  gzip-compressed archives. Each runit service additionally keeps its own
+  stderr in `/data/log/<service>/` (`opendkim`, `rsyslog`) via svlogd with
+  built-in size-based rotation. Mount `./log:/data/log` to keep the logs on
+  the host.
+- **Timezone**: the `tzdata` package is included, so both the `TZ`
+  environment variable (e.g. `TZ=Europe/Budapest`) and a mounted
+  `/etc/localtime` are honoured; log timestamps are written in local time.
 - **Working directory**: OpenDKIM's `BaseDirectory` (`/run/opendkim`) is
-  created in the image.
+  created at container start.
 - **Postfix integration**: point Postfix at the milter, e.g.
   `smtpd_milters = inet:opendkim:8891` together with
   `milter_default_action = accept`.
+
+### Services
+
+runit supervises one directory per service under `rootfs/etc/service/`:
+`opendkim` (the milter) and `rsyslog` (logging). There are no startup
+switches — opendkim is the point of this image and always starts.
+
+The entrypoint reports a missing or invalid `/etc/opendkim/opendkim.conf`
+at startup (visible in `docker logs`); the service itself checks the
+config with `opendkim -n` and fails visibly in its own service log
+(`/data/log/opendkim`) instead of crash-looping silently. Services can be
+controlled at runtime with `sv`:
+
+```sh
+docker exec opendkim sv status /etc/service/*
+docker exec opendkim sv restart /etc/service/opendkim
+docker exec opendkim sv down /etc/service/rsyslog
+```
+
+Container shutdown is graceful: `docker stop` stops `runsvdir` first and
+then the services one by one via `sv exit` — rsyslog last, so the shutdown
+messages of the other services still reach the log files.
 
 ## Building
 

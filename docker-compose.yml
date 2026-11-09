@@ -20,8 +20,10 @@ services:
       # OpenDKIM refuses to start without these permissions:
       #   chown -R root:root ./etc && chmod 600 ./etc/*.private
       - ./etc:/etc/opendkim
-      # Log directory. Works out of the box with rsyslog, which writes the
-      # mail facility log (opendkim's syslog output) to /data/log/mail.log.
+      # Log directory. rsyslog writes and rotates the mail facility log
+      # (opendkim's syslog output) to /data/log/mail.log and the rest to
+      # /data/log/syslog. Each runit service keeps its own stderr here as
+      # well (/data/log/opendkim, /data/log/rsyslog) via svlogd.
       - ./log:/data/log
 
     # Alternative for production hosts where the MTA and OpenDKIM share the

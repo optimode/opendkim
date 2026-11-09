@@ -10,14 +10,19 @@ FROM $BASE_IMAGE
 # are built from the same upstream release and must match.
 ARG OPENDKIM_VERSION=2.11.0
 
+# tzdata: Alpine's musl libc resolves the TZ environment variable and the
+# mounted /etc/localtime file via /usr/share/zoneinfo. Without tzdata the
+# zone lookup silently fails and every daemon (opendkim, rsyslog, ...) logs
+# in UTC regardless of TZ or /etc/localtime.
 RUN apk update && \
     apk add \
     "opendkim~=${OPENDKIM_VERSION}" \
     "opendkim-utils~=${OPENDKIM_VERSION}" \
-    supervisor \
+    runit \
     rsyslog \
+    tzdata \
     && rm -rf /var/cache/apk/* \
-    &&  mkdir -p /run/opendkim/ /data/log/ /var/spool/rsyslog/
+    &&  mkdir -p /var/spool/rsyslog/
 
 COPY rootfs/ /
 
@@ -55,4 +60,4 @@ LABEL "org.opencontainers.image.base.name"="$BASE_IMAGE"
 VOLUME ["/data"]
 EXPOSE 8891
 
-CMD ["/usr/bin/supervisord", "--nodaemon", "--configuration", "/etc/supervisord.conf"]
+CMD ["/usr/local/sbin/entrypoint.sh"]

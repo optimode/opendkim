@@ -1,0 +1,6 @@
+#!/bin/sh
+# OpenDKIM's own stderr (startup errors, milter errors).
+# Regular activity logging goes through syslog -> /data/log/mail.log.
+# svlogd does not create the directory itself.
+mkdir -p /data/log/opendkim
+exec svlogd -tt /data/log/opendkim

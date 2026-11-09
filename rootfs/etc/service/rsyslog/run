@@ -1,0 +1,8 @@
+#!/bin/sh
+# runsv pipes only stdout to the ./log service - merge stderr into it so
+# everything ends up in the svlogd log (and not in "docker logs").
+exec 2>&1
+
+# rsyslog must be up before opendkim: its syslog(3) messages are lost if
+# no daemon is listening on /dev/log yet.
+exec /usr/sbin/rsyslogd -n

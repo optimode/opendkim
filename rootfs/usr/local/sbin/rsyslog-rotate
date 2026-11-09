@@ -1,0 +1,70 @@
+#!/bin/sh
+# Log rotation helper for rsyslog (omfile rotation.sizeLimitCommand).
+#
+# rsyslog calls this script with the log file name as its first argument
+# when the file exceeds the configured rotation.sizeLimit. rsyslog then
+# re-creates and reopens the file, so this script only has to move the
+# old content out of the way.
+#
+# Usage: rsyslog-rotate FILE [KEEP]
+#   FILE  path of the log file to rotate (passed by rsyslog)
+#   KEEP  number of compressed archives to keep (default: 7)
+
+set -u
+
+file="${1:?usage: rsyslog-rotate FILE [KEEP]}"
+keep="${2:-7}"
+
+[ -f "$file" ] || exit 0
+
+stamp="$(date +%Y%m%d-%H%M%S)"
+
+# Choose a unique, lexicographically sortable archive name: several
+# rotations can happen within the same second (burst), and a reused name
+# would overwrite (and thus lose) an earlier archive. Every name carries
+# a zero-padded counter so that name order always matches chronological
+# order (used by the pruning below). The counter continues after the
+# highest existing one and is never reused - a recycled name would sort
+# as "oldest" and be pruned immediately.
+n=0
+for old in "$file.$stamp".*; do
+    [ -e "$old" ] || continue
+    base="${old%.gz}"
+    seq="${base##*.}"
+    case "$seq" in
+        *[!0-9]* | "") continue ;;
+    esac
+    # Strip leading zeros before numeric comparison: shell arithmetic and
+    # test(1) would parse zero-padded numbers as octal ("0008" is invalid).
+    seq_num=$(printf '%s' "$seq" | sed 's/^0*//')
+    [ -n "$seq_num" ] || seq_num=0
+    [ "$seq_num" -ge "$n" ] && n=$((seq_num + 1))
+done
+dest="$file.$stamp.$(printf '%04d' "$n")"
+while [ -e "$dest" ] || [ -e "$dest.gz" ]; do
+    n=$((n + 1))
+    dest="$file.$stamp.$(printf '%04d' "$n")"
+done
+
+# Rename the current file; rsyslog re-creates it and keeps logging.
+mv -f "$file" "$dest" || exit 1
+
+# Compress still uncompressed archives from previous rotations.
+for old in "$file".*; do
+    [ -f "$old" ] || continue
+    case "$old" in
+        *.gz|*.tmp) continue ;;
+    esac
+    gzip -f "$old"
+done
+
+# Prune the oldest archives beyond the retention count. Ordering is by
+# name (timestamp + padded counter), which is chronological and does not
+# depend on mtime ties within the same second.
+ls -1 "$file".*.gz 2>/dev/null | sort | awk -v keep="$keep" \
+    '{ lines[NR] = $0 } END { for (i = 1; i <= NR - keep; i++) print lines[i] }' |
+while IFS= read -r old; do
+    rm -f "$old"
+done
+
+exit 0

@@ -1,0 +1,24 @@
+#!/bin/sh
+# runsv pipes only stdout to the ./log service - merge stderr into it so
+# everything ends up in the svlogd log (and not in "docker logs").
+exec 2>&1
+
+# OpenDKIM milter. Requires its configuration and DKIM keys (mounted at
+# /etc/opendkim/); the entrypoint reports a missing or invalid config at
+# startup (visible in "docker logs").
+sv check /etc/service/rsyslog >/dev/null || {
+    echo "waiting for rsyslog"
+    exit 111
+}
+
+# The Alpine package's default BaseDirectory (normally created by the
+# OpenRC service, not present in a container).
+mkdir -p /run/opendkim
+
+# Check the configuration first so a broken setup fails visibly in the
+# service log instead of crash-looping silently.
+/usr/sbin/opendkim -n -x /etc/opendkim/opendkim.conf || exit 111
+
+# -f: do not fork (runit supervises the foreground process)
+# -l: log activity to syslog -> rsyslog -> /data/log/mail.log
+exec /usr/sbin/opendkim -f -l -x /etc/opendkim/opendkim.conf

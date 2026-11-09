@@ -9,6 +9,36 @@ the version table in [README.md](README.md).
 
 ## [Unreleased]
 
+### Added
+
+- Per-service stderr logs via runit's svlogd under `/data/log/<service>/`
+  (`opendkim`, `rsyslog`) with built-in size-based rotation.
+- Automatic size-based log rotation: rsyslog rotates each log stream in
+  `/data/log` at 50 MiB and keeps 7 gzip-compressed archives
+  (`/usr/local/sbin/rsyslog-rotate`, retention count configurable per call).
+- The `tzdata` package is included, so the `TZ` environment variable and a
+  mounted `/etc/localtime` are honoured; log timestamps are written in
+  local time.
+- The entrypoint reports a missing or invalid `/etc/opendkim/opendkim.conf`
+  at startup (visible in `docker logs`).
+
+### Changed
+
+- Process management is now runit (`runsvdir` as PID 1) instead of
+  supervisord — the image no longer carries a Python interpreter.
+- rsyslog now writes every message to the persistent `/data/log` volume:
+  input rate limiting is disabled (a busy milter would silently drop
+  messages) and a catch-all rule takes every facility that has no
+  dedicated file. Nothing is written to the container's ephemeral
+  `/var/log` any more.
+
+### Fixed
+
+- Container shutdown is now graceful: `docker stop` stops `runsvdir` first
+  and then the services via `sv exit` (rsyslog last), so no orphaned
+  opendkim process is left behind and the shutdown messages of the
+  services still reach the log files.
+
 ## [1.0.0] - 2026-11-06
 
 First versioned release. The image is published as

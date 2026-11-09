@@ -1,0 +1,6 @@
+#!/bin/sh
+# rsyslog's own stderr (startup errors, internal warnings).
+# svlogd rotates at 1 MB and keeps 10 archives by default.
+# svlogd does not create the directory itself.
+mkdir -p /data/log/rsyslog
+exec svlogd -tt /data/log/rsyslog
